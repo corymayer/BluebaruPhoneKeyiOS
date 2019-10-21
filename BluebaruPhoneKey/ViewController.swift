@@ -9,6 +9,7 @@
 import UIKit
 import CoreBluetooth
 import CryptoKit
+import zlib
 
 class ViewController: UIViewController {
     let centralRestoreId = "bluebaru"
@@ -17,15 +18,19 @@ class ViewController: UIViewController {
     let bluebaruUARTSvcUUID = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
     let bluebaruUARTRxCharUUID = CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
     let bluebaruUARTTxCharUUID = CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
+    let key = SymmetricKey(data: "w9z$C&E)H@McQfTjWnZr4u7x!A%D*G-J".data(using: .utf8)!)
     
     var centralMgr: CBCentralManager!
     var bluebaruPeripheral: CBPeripheral?
     var uartRXCharacteristic: CBCharacteristic?
     var uartTXCharacteristic: CBCharacteristic?
+    
+    var nonce: UInt64 = 13
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
+        sendAuth()
         
         centralMgr = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : centralRestoreId])
     }
@@ -97,10 +102,85 @@ class ViewController: UIViewController {
     }
     
     func sendAuth() {
-        uartSend(text: "Hello")
+        let reservedSize = 4
+        let nonceSize = 12
+        let cmdSize = 4
+        let lenSize = 4
+        let tagSize = 16
+        let crcSize = 4
+        let bufSize = reservedSize + nonceSize + cmdSize + lenSize + tagSize + crcSize
+        var byteArr = [UInt8](repeating: 0, count: bufSize)
+        
+        var cmdType: UInt32 = 7
+        
+        // determine nonce
+        let padding = Data(count: 4)
+        let nonceData = padding + withUnsafeBytes(of: nonce) { Data($0) }
+        let nonceObj = try! ChaChaPoly.Nonce(data: nonceData)
+        nonce += 1
+        
+        byteArr.withContiguousMutableStorageIfAvailable { (bufPtr) in
+            var rawPtr = UnsafeMutableRawPointer(bufPtr.baseAddress!)
+            rawPtr += reservedSize
+            
+            // write nonce
+            nonceData.withUnsafeBytes { (nonceBufPtr) in
+                rawPtr.copyMemory(from: nonceBufPtr.baseAddress!, byteCount: nonceData.count)
+            }
+            rawPtr += nonceSize
+            
+            // write cmd type
+            let cmdPtr = UnsafeRawPointer(&cmdType)
+            rawPtr.copyMemory(from: cmdPtr, byteCount: 4)
+            rawPtr += cmdSize
+            
+            // write data len (leave zero)
+            rawPtr += lenSize
+            
+            // encrypt cmd+data
+            let dataToEncrypt = Data(bytes: UnsafeMutableRawPointer(bufPtr.baseAddress!) + reservedSize + nonceSize, count: cmdSize + lenSize)
+            let encryptedBox = try! ChaChaPoly.seal(dataToEncrypt, using: key, nonce: nonceObj)
+            print(encryptedBox.ciphertext)
+            
+            // write encrypted data
+            rawPtr -= lenSize + cmdSize
+            encryptedBox.ciphertext.withUnsafeBytes { (cipertextBuf) in
+                rawPtr.copyMemory(from: cipertextBuf.baseAddress!, byteCount: encryptedBox.ciphertext.count)
+            }
+            rawPtr += lenSize + cmdSize
+            
+            // write tag
+            encryptedBox.tag.withUnsafeBytes { (tagBuf) in
+                rawPtr.copyMemory(from: tagBuf.baseAddress!, byteCount: encryptedBox.tag.count)
+            }
+        }
+        
+        // crc the whole packet
+        var crc = CRC32.checksum(bytes: byteArr)
+        print(NSString(format:"CRC: %2X", crc))
+        
+        // write CRC
+        byteArr.withContiguousMutableStorageIfAvailable { (bufPtr) in
+            var rawPtr = UnsafeMutableRawPointer(bufPtr.baseAddress!)
+            rawPtr += reservedSize + nonceSize + cmdSize + lenSize + tagSize
+            
+            let crcPtr = UnsafeRawPointer(&crc)
+            rawPtr.copyMemory(from: crcPtr, byteCount: 4)
+            
+            for byte in bufPtr {
+                print(byte)
+            }
+            
+            let crcCheck = rawPtr.load(as: UInt32.self)
+            print(NSString(format:"CRC check: %2X", crcCheck))
+        }
+        
+        
+//        uartSend(text: "Hello")
     }
 }
 
+// MARK: - CoreBluetooth
 extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
@@ -184,7 +264,28 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
 
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        print("char value is \(String(describing: characteristic.value))")
+        guard error == nil else {
+            print("Updating characteristic has failed")
+            return
+        }
+        
+        if (characteristic.uuid == bluebaruUARTTxCharUUID) {
+            // try to print a friendly string of received bytes if they can be parsed as UTF8
+            guard let bytesReceived = characteristic.value else {
+                print("Notification received from: \(characteristic.uuid.uuidString), with empty value")
+                print("Empty packet received")
+                return
+            }
+            
+            print("Notification received from: \(characteristic.uuid.uuidString), with value: 0x\(bytesReceived.hexString)")
+            if let validUTF8String = String(data: bytesReceived, encoding: .utf8) {
+                print("\"\(validUTF8String)\" received")
+            } else {
+                print("\"0x\(bytesReceived.hexString)\" received")
+            }
+        } else if (characteristic.uuid == bluebaryDummyCharUUID) {
+            print("dummy char read")
+        }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
@@ -192,6 +293,7 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 }
 
+// MARK: - Extensions
 private extension String {
     func split(by length: Int) -> [String] {
         var startIndex = self.startIndex
@@ -205,4 +307,12 @@ private extension String {
         
         return results.map { String($0) }
     }
+}
+
+extension Data {
+
+    internal var hexString: String {
+        return map { String(format: "%02X", $0) }.joined()
+    }
+    
 }

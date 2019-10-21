@@ -14,6 +14,7 @@
 		8BBCB006235BF910005615C4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8BBCB005235BF910005615C4 /* Assets.xcassets */; };
 		8BBCB009235BF910005615C4 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8BBCB007235BF910005615C4 /* LaunchScreen.storyboard */; };
 		8BBCB012235BF91D005615C4 /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8BBCB011235BF91D005615C4 /* CoreBluetooth.framework */; };
+		8BBCB015235CEB2A005615C4 /* CRC32.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BBCB014235CEB2A005615C4 /* CRC32.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +27,8 @@
 		8BBCB008235BF910005615C4 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8BBCB00A235BF910005615C4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8BBCB011235BF91D005615C4 /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = System/Library/Frameworks/CoreBluetooth.framework; sourceTree = SDKROOT; };
+		8BBCB013235CE716005615C4 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		8BBCB014235CEB2A005615C4 /* CRC32.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CRC32.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,6 +70,7 @@
 				8BBCB005235BF910005615C4 /* Assets.xcassets */,
 				8BBCB007235BF910005615C4 /* LaunchScreen.storyboard */,
 				8BBCB00A235BF910005615C4 /* Info.plist */,
+				8BBCB014235CEB2A005615C4 /* CRC32.swift */,
 			);
 			path = BluebaruPhoneKey;
 			sourceTree = "<group>";
@@ -74,6 +78,7 @@
 		8BBCB010235BF91D005615C4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				8BBCB013235CE716005615C4 /* libz.tbd */,
 				8BBCB011235BF91D005615C4 /* CoreBluetooth.framework */,
 			);
 			name = Frameworks;
@@ -153,6 +158,7 @@
 				8BBCB001235BF90D005615C4 /* ViewController.swift in Sources */,
 				8BBCAFFD235BF90D005615C4 /* AppDelegate.swift in Sources */,
 				8BBCAFFF235BF90D005615C4 /* SceneDelegate.swift in Sources */,
+				8BBCB015235CEB2A005615C4 /* CRC32.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
