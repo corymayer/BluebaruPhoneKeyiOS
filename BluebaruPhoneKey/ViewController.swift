@@ -30,9 +30,31 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
-        sendAuth()
         
         centralMgr = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : centralRestoreId])
+    }
+    
+    // TODO write out own UART send for data
+    func uartSend(withData data: Data) {
+        guard uartRXCharacteristic != nil else {
+            print("UART RX Characteristic not found")
+            return
+        }
+        guard let bluetoothPeripheral = bluebaruPeripheral else {
+            print("No peripheral")
+            return
+        }
+        
+        let typeAsString = ".withResponse"
+        
+        // Do some logging
+        print("Writing to characteristic: \(uartRXCharacteristic!.uuid.uuidString)")
+        print("peripheral.writeValue(\(data.hexString)), for: \(uartRXCharacteristic!.uuid.uuidString), type: \(typeAsString))")
+        bluetoothPeripheral.writeValue(data, for: uartRXCharacteristic!, type: .withResponse)
+        // The transmitted data is not available after the method returns. We have to log the text here.
+        // The callback peripheral:didWriteValueForCharacteristic:error: is called only when the Write Request type was used,
+        // but even if, the data is not available there.
+        print("\"\(data.hexString)\" sent")
     }
     
     /**
@@ -109,6 +131,7 @@ class ViewController: UIViewController {
         let tagSize = 16
         let crcSize = 4
         let bufSize = reservedSize + nonceSize + cmdSize + lenSize + tagSize + crcSize
+        
         var byteArr = [UInt8](repeating: 0, count: bufSize)
         
         var cmdType: UInt32 = 7
@@ -175,8 +198,9 @@ class ViewController: UIViewController {
             print(NSString(format:"CRC check: %2X", crcCheck))
         }
         
-        
-//        uartSend(text: "Hello")
+        let payloadData = Data(bytes: byteArr, count: byteArr.count)
+        uartSend(text: "Hello")
+        uartSend(withData: payloadData)
     }
 }
 

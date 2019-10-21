@@ -1,9 +1,6 @@
 //
 //  CRC32.swift
-//  BluebaruPhoneKey
-//
-//  Created by Cory Mayer on 10/20/19.
-//  Copyright © 2019 Cory Mayer. All rights reserved.
+//  https://gist.github.com/antfarm/695fa78e0730b67eb094c77d53942216
 //
 
 import Foundation
