@@ -18,7 +18,8 @@ class ViewController: UIViewController {
     let bluebaruUARTSvcUUID = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
     let bluebaruUARTRxCharUUID = CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
     let bluebaruUARTTxCharUUID = CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
-    let key = SymmetricKey(data: "w9z$C&E)H@McQfTjWnZr4u7x!A%D*G-J".data(using: .utf8)!)
+    let key = SymmetricKey(data: "w9z$C&E)H@McQfTjWnZr4u7x!A%D*G-J".data(using: .ascii)!)
+    let cmdTypeAuthenticate = 7
     
     var centralMgr: CBCentralManager!
     var bluebaruPeripheral: CBPeripheral?
@@ -124,17 +125,17 @@ class ViewController: UIViewController {
     }
     
     func sendAuth() {
-        let reservedSize = 4
+        let pktLenSize = 4
+        let crcSize = 4
         let nonceSize = 12
         let cmdSize = 4
-        let lenSize = 4
+        let dataLenSize = 4
         let tagSize = 16
-        let crcSize = 4
-        let bufSize = reservedSize + nonceSize + cmdSize + lenSize + tagSize + crcSize
+        let bufSize = crcSize + pktLenSize + nonceSize + cmdSize + dataLenSize + tagSize
         
         var byteArr = [UInt8](repeating: 0, count: bufSize)
         
-        var cmdType: UInt32 = 7
+        var cmdType: UInt32 = UInt32(cmdTypeAuthenticate)
         
         // determine nonce
         let padding = Data(count: 4)
@@ -144,7 +145,13 @@ class ViewController: UIViewController {
         
         byteArr.withContiguousMutableStorageIfAvailable { (bufPtr) in
             var rawPtr = UnsafeMutableRawPointer(bufPtr.baseAddress!)
-            rawPtr += reservedSize
+            rawPtr += crcSize
+            
+            // write packet len
+            var pktLen = UInt32(bufSize)
+            let pktLenPtr = UnsafeRawPointer(&pktLen)
+            rawPtr.copyMemory(from: pktLenPtr, byteCount: 4)
+            rawPtr += pktLenSize
             
             // write nonce
             nonceData.withUnsafeBytes { (nonceBufPtr) in
@@ -158,19 +165,19 @@ class ViewController: UIViewController {
             rawPtr += cmdSize
             
             // write data len (leave zero)
-            rawPtr += lenSize
+            rawPtr += dataLenSize
             
             // encrypt cmd+data
-            let dataToEncrypt = Data(bytes: UnsafeMutableRawPointer(bufPtr.baseAddress!) + reservedSize + nonceSize, count: cmdSize + lenSize)
+            let dataToEncrypt = Data(bytes: UnsafeMutableRawPointer(bufPtr.baseAddress!) + crcSize + pktLenSize + nonceSize, count: cmdSize + dataLenSize)
             let encryptedBox = try! ChaChaPoly.seal(dataToEncrypt, using: key, nonce: nonceObj)
             print(encryptedBox.ciphertext)
             
             // write encrypted data
-            rawPtr -= lenSize + cmdSize
+            rawPtr -= dataLenSize + cmdSize
             encryptedBox.ciphertext.withUnsafeBytes { (cipertextBuf) in
                 rawPtr.copyMemory(from: cipertextBuf.baseAddress!, byteCount: encryptedBox.ciphertext.count)
             }
-            rawPtr += lenSize + cmdSize
+            rawPtr += dataLenSize + cmdSize
             
             // write tag
             encryptedBox.tag.withUnsafeBytes { (tagBuf) in
@@ -184,8 +191,7 @@ class ViewController: UIViewController {
         
         // write CRC
         byteArr.withContiguousMutableStorageIfAvailable { (bufPtr) in
-            var rawPtr = UnsafeMutableRawPointer(bufPtr.baseAddress!)
-            rawPtr += reservedSize + nonceSize + cmdSize + lenSize + tagSize
+            let rawPtr = UnsafeMutableRawPointer(bufPtr.baseAddress!)
             
             let crcPtr = UnsafeRawPointer(&crc)
             rawPtr.copyMemory(from: crcPtr, byteCount: 4)
@@ -199,7 +205,6 @@ class ViewController: UIViewController {
         }
         
         let payloadData = Data(bytes: byteArr, count: byteArr.count)
-        uartSend(text: "Hello")
         uartSend(withData: payloadData)
     }
 }
@@ -252,11 +257,16 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        print("disconnected")
+        if (peripheral == bluebaruPeripheral) {
+            print("Reconnecting")
+            centralMgr.connect(peripheral, options: nil)
+        } else {
+            print("unknown peripheral")
+        }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        print(peripheral.services)
+        print(peripheral.services as Any)
         if let svcs = peripheral.services {
             for service in svcs {
                 if service.uuid == bluebaruDummySvcUUID {
