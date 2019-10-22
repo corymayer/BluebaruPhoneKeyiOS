@@ -290,7 +290,7 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
                     
                     sendAuth()
                 } else if character.uuid == bluebaryDummyCharUUID {
-                    peripheral.readValue(for: character)
+//                    peripheral.readValue(for: character)
                 }
             }
         }
@@ -299,7 +299,7 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         guard error == nil else {
-            print("Updating characteristic has failed")
+            print("Updating value has failed")
             return
         }
         
