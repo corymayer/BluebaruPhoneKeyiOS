@@ -13,18 +13,24 @@ import zlib
 
 class ViewController: UIViewController {
     let centralRestoreId = "bluebaru"
+    let batSvcUUID = CBUUID(string: "180F")
     let bluebaruDummySvcUUID = CBUUID(string: "963E")
     let bluebaryDummyCharUUID = CBUUID(string: "963E")
     let bluebaruUARTSvcUUID = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
     let bluebaruUARTRxCharUUID = CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
     let bluebaruUARTTxCharUUID = CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
     let key = SymmetricKey(data: "w9z$C&E)H@McQfTjWnZr4u7x!A%D*G-J".data(using: .ascii)!)
+    
     let cmdTypeAuthenticate = 7
+    let authChallengeMsg = "authChallenge"
+    
+    @IBOutlet weak var batLvlLabel: UILabel!
     
     var centralMgr: CBCentralManager!
     var bluebaruPeripheral: CBPeripheral?
     var uartRXCharacteristic: CBCharacteristic?
     var uartTXCharacteristic: CBCharacteristic?
+    var batChar: CBCharacteristic?
     
     var nonce: UInt64 = 0
 
@@ -51,6 +57,12 @@ class ViewController: UIViewController {
     @IBAction func disconnectPress(_ sender: Any) {
         if let periph = bluebaruPeripheral, periph.state == .connected {
             centralMgr.cancelPeripheralConnection(periph)
+        }
+    }
+    
+    @IBAction func updateBatteryPress(_ sender: Any) {
+        if let periph = bluebaruPeripheral, let character = batChar {
+            periph.readValue(for: character)
         }
     }
     
@@ -247,6 +259,10 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
         case .poweredOn:
             print("central.state is .poweredOn")
             centralMgr.scanForPeripherals(withServices: [bluebaruDummySvcUUID], options: nil)
+            
+            if bluebaruPeripheral != nil && batChar == nil {
+                bluebaruPeripheral?.discoverServices(nil)
+            }
         @unknown default:
             print("central.state is unknown")
         }
@@ -259,7 +275,7 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
         if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
             for peripheral in peripherals {
                 bluebaruPeripheral = peripheral
-
+                bluebaruPeripheral?.delegate = self
             }
         }
     }
@@ -274,6 +290,7 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
     }
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        print("connected")
         peripheral.discoverServices(nil)
     }
     
@@ -287,13 +304,14 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        print(peripheral.services as Any)
         if let svcs = peripheral.services {
             for service in svcs {
                 if service.uuid == bluebaruDummySvcUUID {
                     peripheral.discoverCharacteristics([bluebaryDummyCharUUID], for: service)
                 } else if service.uuid == bluebaruUARTSvcUUID {
-                    peripheral.discoverCharacteristics([bluebaruUARTRxCharUUID], for: service)
+                    peripheral.discoverCharacteristics([bluebaruUARTRxCharUUID, bluebaruUARTTxCharUUID], for: service)
+                } else if service.uuid == batSvcUUID {
+                    peripheral.discoverCharacteristics(nil, for: service)
                 }
             }
         }
@@ -309,9 +327,13 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
                 } else if character.uuid == bluebaruUARTRxCharUUID {
                     uartRXCharacteristic = character
                     
-                    sendAuth()
+//                    sendAuth()
                 } else if character.uuid == bluebaryDummyCharUUID {
 //                    peripheral.readValue(for: character)
+                } else if service.uuid == batSvcUUID {
+                    batChar = character
+                    
+                    peripheral.readValue(for: character)
                 }
             }
         }
@@ -335,16 +357,36 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
             print("Notification received from: \(characteristic.uuid.uuidString), with value: 0x\(bytesReceived.hexString)")
             if let validUTF8String = String(data: bytesReceived, encoding: .utf8) {
                 print("\"\(validUTF8String)\" received")
+                
+                if validUTF8String == authChallengeMsg {
+                    sendAuth()
+                }
             } else {
                 print("\"0x\(bytesReceived.hexString)\" received")
             }
         } else if (characteristic.uuid == bluebaryDummyCharUUID) {
             print("dummy char read")
+        } else if (characteristic == batChar) {
+            if let data = characteristic.value {
+                let lvl = data.withUnsafeBytes { (ptr) -> UInt8 in
+                    return ptr.load(as: UInt8.self)
+                }
+                batLvlLabel.text = String(lvl)
+            }
         }
     }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
-        print("notified")
+        guard error == nil else {
+            print("Enabling notifications failed")
+            return
+        }
+        
+        if characteristic.isNotifying {
+            print("Notifications enabled for characteristic: \(characteristic.uuid.uuidString)")
+        } else {
+            print("Notifications disabled for characteristic: \(characteristic.uuid.uuidString)")
+        }
     }
 }
 

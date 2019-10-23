@@ -16,7 +16,7 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" translatesAutoresizingMaskIntoConstraints="NO" id="SGw-FR-Rt9">
-                                <rect key="frame" x="147" y="423" width="120" height="60"/>
+                                <rect key="frame" x="147" y="408" width="120" height="90"/>
                                 <subviews>
                                     <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ip4-hQ-q5s">
                                         <rect key="frame" x="0.0" y="0.0" width="120" height="30"/>
@@ -32,19 +32,45 @@
                                             <action selector="disconnectPress:" destination="BYZ-38-t0r" eventType="touchUpInside" id="EG8-fV-cdY"/>
                                         </connections>
                                     </button>
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="0y7-id-SgX">
+                                        <rect key="frame" x="0.0" y="60" width="120" height="30"/>
+                                        <state key="normal" title="Update Battery"/>
+                                        <connections>
+                                            <action selector="updateBatteryPress:" destination="BYZ-38-t0r" eventType="touchUpInside" id="MHB-PI-DW7"/>
+                                        </connections>
+                                    </button>
                                 </subviews>
                                 <constraints>
                                     <constraint firstAttribute="width" constant="120" id="1Gd-IY-6cg"/>
                                 </constraints>
                             </stackView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Battery:" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="RHa-Qv-QIE">
+                                <rect key="frame" x="20" y="44" width="74.5" height="26.5"/>
+                                <fontDescription key="fontDescription" style="UICTFontTextStyleTitle2"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="0" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="A3q-TV-1UB">
+                                <rect key="frame" x="102.5" y="44" width="14" height="26.5"/>
+                                <fontDescription key="fontDescription" style="UICTFontTextStyleTitle2"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
                         <constraints>
+                            <constraint firstItem="A3q-TV-1UB" firstAttribute="firstBaseline" secondItem="RHa-Qv-QIE" secondAttribute="firstBaseline" id="Mgb-Hc-828"/>
+                            <constraint firstItem="A3q-TV-1UB" firstAttribute="leading" secondItem="RHa-Qv-QIE" secondAttribute="trailing" constant="8" id="Nd4-zn-8Dj"/>
+                            <constraint firstItem="RHa-Qv-QIE" firstAttribute="top" secondItem="6Tk-OE-BBY" secondAttribute="top" id="UI5-Dn-7s0"/>
                             <constraint firstItem="SGw-FR-Rt9" firstAttribute="centerY" secondItem="6Tk-OE-BBY" secondAttribute="centerY" id="Vzc-3t-ixu"/>
                             <constraint firstItem="SGw-FR-Rt9" firstAttribute="centerX" secondItem="6Tk-OE-BBY" secondAttribute="centerX" id="ZZp-sM-bQv"/>
+                            <constraint firstItem="RHa-Qv-QIE" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="20" id="crY-Ix-9ua"/>
                         </constraints>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>
+                    <connections>
+                        <outlet property="batLvlLabel" destination="A3q-TV-1UB" id="f1l-pZ-5Qf"/>
+                    </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
