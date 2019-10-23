@@ -26,14 +26,34 @@ class ViewController: UIViewController {
     var uartRXCharacteristic: CBCharacteristic?
     var uartTXCharacteristic: CBCharacteristic?
     
-    var nonce: UInt64 = 13
+    var nonce: UInt64 = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
         
+        // restore nonce
+        nonce = UInt64(UserDefaults.standard.integer(forKey: "nonce"))
+        if (nonce == 0) {
+            nonce = 1
+        }
+        print("Restored nonce: \(nonce)")
+        
         centralMgr = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey : centralRestoreId])
     }
+    
+    @IBAction func connectPress(_ sender: Any) {
+        if let periph = bluebaruPeripheral, periph.state == .disconnected {
+            centralMgr.connect(periph, options: nil)
+        }
+    }
+    
+    @IBAction func disconnectPress(_ sender: Any) {
+        if let periph = bluebaruPeripheral, periph.state == .connected {
+            centralMgr.cancelPeripheralConnection(periph)
+        }
+    }
+    
     
     // TODO write out own UART send for data
     func uartSend(withData data: Data) {
@@ -142,6 +162,7 @@ class ViewController: UIViewController {
         let nonceData = padding + withUnsafeBytes(of: nonce) { Data($0) }
         let nonceObj = try! ChaChaPoly.Nonce(data: nonceData)
         nonce += 1
+        UserDefaults.standard.set(nonce, forKey: "nonce")
         
         byteArr.withContiguousMutableStorageIfAvailable { (bufPtr) in
             var rawPtr = UnsafeMutableRawPointer(bufPtr.baseAddress!)
