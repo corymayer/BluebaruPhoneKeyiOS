@@ -56,20 +56,37 @@
                                 <nil key="textColor"/>
                                 <nil key="highlightedColor"/>
                             </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Connected: " textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="iUX-zx-nJm">
+                                <rect key="frame" x="20" y="78.5" width="116" height="26.5"/>
+                                <fontDescription key="fontDescription" style="UICTFontTextStyleTitle2"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="no" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="nEh-Vd-1FU">
+                                <rect key="frame" x="144" y="78" width="24" height="27"/>
+                                <fontDescription key="fontDescription" style="UICTFontTextStyleTitle2"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
                         </subviews>
                         <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
                         <constraints>
                             <constraint firstItem="A3q-TV-1UB" firstAttribute="firstBaseline" secondItem="RHa-Qv-QIE" secondAttribute="firstBaseline" id="Mgb-Hc-828"/>
                             <constraint firstItem="A3q-TV-1UB" firstAttribute="leading" secondItem="RHa-Qv-QIE" secondAttribute="trailing" constant="8" id="Nd4-zn-8Dj"/>
+                            <constraint firstItem="iUX-zx-nJm" firstAttribute="top" secondItem="RHa-Qv-QIE" secondAttribute="bottom" constant="8" id="S2Z-2u-kde"/>
                             <constraint firstItem="RHa-Qv-QIE" firstAttribute="top" secondItem="6Tk-OE-BBY" secondAttribute="top" id="UI5-Dn-7s0"/>
                             <constraint firstItem="SGw-FR-Rt9" firstAttribute="centerY" secondItem="6Tk-OE-BBY" secondAttribute="centerY" id="Vzc-3t-ixu"/>
+                            <constraint firstItem="nEh-Vd-1FU" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="144" id="Xbv-QQ-9us"/>
                             <constraint firstItem="SGw-FR-Rt9" firstAttribute="centerX" secondItem="6Tk-OE-BBY" secondAttribute="centerX" id="ZZp-sM-bQv"/>
                             <constraint firstItem="RHa-Qv-QIE" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="20" id="crY-Ix-9ua"/>
+                            <constraint firstItem="nEh-Vd-1FU" firstAttribute="firstBaseline" secondItem="iUX-zx-nJm" secondAttribute="firstBaseline" id="d6H-v4-DeB"/>
+                            <constraint firstItem="iUX-zx-nJm" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="20" id="vve-kX-rGi"/>
                         </constraints>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>
                     <connections>
                         <outlet property="batLvlLabel" destination="A3q-TV-1UB" id="f1l-pZ-5Qf"/>
+                        <outlet property="connectedLabel" destination="nEh-Vd-1FU" id="nHi-LV-ye4"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>

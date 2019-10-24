@@ -25,6 +25,7 @@ class ViewController: UIViewController {
     let authChallengeMsg = "authChallenge"
     
     @IBOutlet weak var batLvlLabel: UILabel!
+    @IBOutlet weak var connectedLabel: UILabel!
     
     var centralMgr: CBCentralManager!
     var bluebaruPeripheral: CBPeripheral?
@@ -276,6 +277,13 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
             for peripheral in peripherals {
                 bluebaruPeripheral = peripheral
                 bluebaruPeripheral?.delegate = self
+                
+                if peripheral.state == .connected {
+                    connectedLabel.text = "yes"
+                } else if peripheral.state == .disconnected {
+                    connectedLabel.text = "no"
+                    central.connect(peripheral, options: nil)
+                }
             }
         }
     }
@@ -291,10 +299,12 @@ extension ViewController: CBCentralManagerDelegate, CBPeripheralDelegate {
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         print("connected")
+        connectedLabel.text = "yes"
         peripheral.discoverServices(nil)
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        connectedLabel.text = "no"
         if (peripheral == bluebaruPeripheral) {
             print("Reconnecting")
             centralMgr.connect(peripheral, options: nil)
