@@ -19,10 +19,11 @@ class ViewController: UIViewController {
     let bluebaruUARTSvcUUID = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
     let bluebaruUARTRxCharUUID = CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
     let bluebaruUARTTxCharUUID = CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
-    let key = SymmetricKey(data: "w9z$C&E)H@McQfTjWnZr4u7x!A%D*G-J".data(using: .ascii)!)
+    let key = SymmetricKey(data: "w9z$C&E)H@McQfTjWnZr4u7x!A%D*G-J".data(using: .ascii)!) // CHANGE TO YOUR OWN KEY
     
     let cmdTypeAuthenticate = 7
     let authChallengeMsg = "authChallenge"
+    let nonceLen = 12
     
     @IBOutlet weak var batLvlLabel: UILabel!
     @IBOutlet weak var connectedLabel: UILabel!
@@ -34,6 +35,17 @@ class ViewController: UIViewController {
     var batChar: CBCharacteristic?
     
     var nonce: UInt64 = 0
+    
+    struct UartPktHdrPlain {
+        let crc: UInt32
+        let pktLen: UInt32
+        let nonce: UInt64
+    }
+
+    struct UartPktHdrEncrypted {
+        let cmd: UInt32
+        let dataLen: UInt32
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -81,13 +93,9 @@ class ViewController: UIViewController {
         
         let typeAsString = ".withResponse"
         
-        // Do some logging
         print("Writing to characteristic: \(uartRXCharacteristic!.uuid.uuidString)")
         print("peripheral.writeValue(\(data.hexString)), for: \(uartRXCharacteristic!.uuid.uuidString), type: \(typeAsString))")
         bluetoothPeripheral.writeValue(data, for: uartRXCharacteristic!, type: .withResponse)
-        // The transmitted data is not available after the method returns. We have to log the text here.
-        // The callback peripheral:didWriteValueForCharacteristic:error: is called only when the Write Request type was used,
-        // but even if, the data is not available there.
         print("\"\(data.hexString)\" sent")
     }
     
@@ -147,74 +155,60 @@ class ViewController: UIViewController {
         let typeAsString = aType == .withoutResponse ? ".withoutResponse" : ".withResponse"
         let data = aText.data(using: String.Encoding.utf8)!
         
-        // Do some logging
         print("Writing to characteristic: \(uartRXCharacteristic!.uuid.uuidString)")
         print("peripheral.writeValue(\(aText)), for: \(uartRXCharacteristic!.uuid.uuidString), type: \(typeAsString))")
         bluetoothPeripheral.writeValue(data, for: uartRXCharacteristic!, type: aType)
-        // The transmitted data is not available after the method returns. We have to log the text here.
-        // The callback peripheral:didWriteValueForCharacteristic:error: is called only when the Write Request type was used,
-        // but even if, the data is not available there.
         print("\"\(aText)\" sent")
     }
     
+    /**
+            Sends the authentication challenge response over BLE UART.
+     */
     func sendAuth() {
-        let pktLenSize = 4
-        let crcSize = 4
-        let nonceSize = 12
-        let cmdSize = 4
-        let dataLenSize = 4
         let tagSize = 16
-        let bufSize = crcSize + pktLenSize + nonceSize + cmdSize + dataLenSize + tagSize
+        let bufSize = MemoryLayout<UartPktHdrPlain>.size + MemoryLayout<UartPktHdrEncrypted>.size + tagSize
         
         var byteArr = [UInt8](repeating: 0, count: bufSize)
         
-        var cmdType: UInt32 = UInt32(cmdTypeAuthenticate)
-        
         // determine nonce
+        let curNonce = nonce
         let padding = Data(count: 4)
-        let nonceData = padding + withUnsafeBytes(of: nonce) { Data($0) }
+        let nonceData = padding + withUnsafeBytes(of: curNonce) { Data($0) }
         let nonceObj = try! ChaChaPoly.Nonce(data: nonceData)
         nonce += 1
         UserDefaults.standard.set(nonce, forKey: "nonce")
         
+        // build headers
+        var hdrPlain = UartPktHdrPlain(crc: 0, pktLen: UInt32(bufSize), nonce: curNonce)
+        var hdrEncrypted = UartPktHdrEncrypted(cmd: UInt32(cmdTypeAuthenticate), dataLen: 0)
+        
         byteArr.withContiguousMutableStorageIfAvailable { (bufPtr) in
             var rawPtr = UnsafeMutableRawPointer(bufPtr.baseAddress!)
-            rawPtr += crcSize
             
-            // write packet len
-            var pktLen = UInt32(bufSize)
-            let pktLenPtr = UnsafeRawPointer(&pktLen)
-            rawPtr.copyMemory(from: pktLenPtr, byteCount: 4)
-            rawPtr += pktLenSize
+            // write plaintext section header
+            let hdrPlainLen = MemoryLayout.size(ofValue: hdrPlain)
+            rawPtr.copyMemory(from: &hdrPlain, byteCount: hdrPlainLen)
+            rawPtr += hdrPlainLen
             
-            // write nonce
-            nonceData.withUnsafeBytes { (nonceBufPtr) in
-                rawPtr.copyMemory(from: nonceBufPtr.baseAddress!, byteCount: nonceData.count)
-            }
-            rawPtr += nonceSize
+            // write encrypted section header
+            let hdrEncLen = MemoryLayout.size(ofValue: hdrEncrypted)
+            rawPtr.copyMemory(from: &hdrEncrypted, byteCount: hdrEncLen)
             
-            // write cmd type
-            let cmdPtr = UnsafeRawPointer(&cmdType)
-            rawPtr.copyMemory(from: cmdPtr, byteCount: 4)
-            rawPtr += cmdSize
-            
-            // write data len (leave zero)
-            rawPtr += dataLenSize
-            
-            // encrypt cmd+data
-            let dataToEncrypt = Data(bytes: UnsafeMutableRawPointer(bufPtr.baseAddress!) + crcSize + pktLenSize + nonceSize, count: cmdSize + dataLenSize)
+            // encrypt cmd+data (only need the encrypted header since there is no encrypted data here)
+            let dataToEncrypt = Data(bytes: UnsafeMutableRawPointer(bufPtr.baseAddress!) + hdrPlainLen, count: hdrEncLen)
             let encryptedBox = try! ChaChaPoly.seal(dataToEncrypt, using: key, nonce: nonceObj)
             print(encryptedBox.ciphertext)
             
             // write encrypted data
-            rawPtr -= dataLenSize + cmdSize
             encryptedBox.ciphertext.withUnsafeBytes { (cipertextBuf) in
+                assert(encryptedBox.ciphertext.count == hdrEncLen)
                 rawPtr.copyMemory(from: cipertextBuf.baseAddress!, byteCount: encryptedBox.ciphertext.count)
             }
-            rawPtr += dataLenSize + cmdSize
+            rawPtr += hdrEncLen
             
             // write tag
             encryptedBox.tag.withUnsafeBytes { (tagBuf) in
+                assert(encryptedBox.tag.count == tagSize)
                 rawPtr.copyMemory(from: tagBuf.baseAddress!, byteCount: encryptedBox.tag.count)
             }
         }
@@ -227,8 +221,7 @@ class ViewController: UIViewController {
         byteArr.withContiguousMutableStorageIfAvailable { (bufPtr) in
             let rawPtr = UnsafeMutableRawPointer(bufPtr.baseAddress!)
             
-            let crcPtr = UnsafeRawPointer(&crc)
-            rawPtr.copyMemory(from: crcPtr, byteCount: 4)
+            rawPtr.copyMemory(from: &crc, byteCount: MemoryLayout.size(ofValue: crc))
             
             for byte in bufPtr {
                 print(byte)
@@ -236,6 +229,7 @@ class ViewController: UIViewController {
             
             let crcCheck = rawPtr.load(as: UInt32.self)
             print(NSString(format:"CRC check: %2X", crcCheck))
+            assert(crcCheck == crc)
         }
         
         let payloadData = Data(bytes: byteArr, count: byteArr.count)
@@ -417,7 +411,6 @@ private extension String {
 }
 
 extension Data {
-
     internal var hexString: String {
         return map { String(format: "%02X", $0) }.joined()
     }
